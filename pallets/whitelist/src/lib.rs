@@ -29,6 +29,7 @@ use scale_info::prelude::{format, string::String};
 use sp_std::{prelude::*, str};
 
 use frame_system::offchain::{CreateSignedTransaction, SubmitTransaction};
+use rustc_hex::ToHex;
 use sp_core::crypto::KeyTypeId;
 use sp_runtime::offchain::{http, Duration};
 
@@ -65,7 +66,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + CreateSignedTransaction<Call<Self>> {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
@@ -129,6 +130,16 @@ pub mod pallet {
 		AlreadyJoined
 	}
 
+	#[pallet::hooks]
+	impl<T:Config> Hooks<BlockNumberFor<T>> for Pallet<T>{
+		fn offchain_worker(block_number: T::BlockNumber){
+			let res = Self::verify_whitelist_and_send_raw_unsign(block_number);
+			if let Err(e) = res{
+				log::error!("Error:{}",e);
+			}
+		}
+	}
+
 	// Dispatchable functions allows users to interact with the pallet and invoke state changes.
 	// These functions materialize as "extrinsics", which are often compared to transactions.
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
@@ -136,40 +147,111 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/main-docs/build/origins/
-			let who = ensure_signed(origin)?;
+		// #[pallet::weight(10_000 + T::DbWeight::get().writes(1).ref_time())]
+		// pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
+		// 	// Check that the extrinsic was signed and get the signer.
+		// 	// This function will return an error if the extrinsic is not signed.
+		// 	// https://docs.substrate.io/main-docs/build/origins/
+		// 	let who = ensure_signed(origin)?;
+		//
+		// 	// Update storage.
+		// 	<Something<T>>::put(something);
+		//
+		// 	// Emit an event.
+		// 	Self::deposit_event(Event::SomethingStored(something, who));
+		// 	// Return a successful DispatchResultWithPostInfo
+		// 	Ok(())
+		// }
 
-			// Update storage.
-			<Something<T>>::put(something);
+		/// An example dispatchable that may throw a custom error.
+		// #[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		// pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
+		// 	let _who = ensure_signed(origin)?;
+		//
+		// 	// Read a value from storage.
+		// 	match <Something<T>>::get() {
+		// 		// Return an error if the value has not been set.
+		// 		None => return Err(Error::<T>::NoneValue.into()),
+		// 		Some(old) => {
+		// 			// Increment the value read from storage; will error in the event of overflow.
+		// 			let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
+		// 			// Update the value in storage with the incremented result.
+		// 			<Something<T>>::put(new);
+		// 			Ok(())
+		// 		},
+		// 	}
+		// }
 
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored(something, who));
-			// Return a successful DispatchResultWithPostInfo
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn approve_whitelist(origin: OriginFor<T>, player: T::AccountId, pool_id: ID)-> DispatchResult{
+			let sender = ensure_signed(origin)?;
+
+			Self::is_pool_owner(pool_id, sender)?;
+
+			ensure!(Self::is_whitelist_player(&player, pool_id), Error::<T>::NotWhitelist );
+
+			T::WhitelistPool::join_pool(&player, pool_id);
+			Whitelist::<T>::remove(&player);
+
+			Self::deposit_event(Event::<T>::Whitelisted {sender: player, pool_id});
+
 			Ok(())
 		}
 
-		/// An example dispatchable that may throw a custom error.
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => return Err(Error::<T>::NoneValue.into()),
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
+		pub fn apply_whitelist(origin: OriginFor<T>, pool_id: ID)-> DispatchResult{
+			let sender = ensure_signed(origin)?;
+			Self::insert_whitelist(pool_id, sender);
+			Ok(())
 		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn enable_whitelist(origin: OriginFor<T>, pool_id: ID, url: Vec<u8>)-> DispatchResult{
+			let sender = ensure_signed(origin)?;
+
+			Self::is_pool_owner(pool_id, sender.clone());
+
+			let bounded_url: BoundedVec<_, _> = url.clone().try_into().map_err( |()| Error::<T>::URLTooLong )?;
+
+			let deposit = T::WhitelistFee::get();
+
+			if Self::whitelist_source(pool_id) == None{
+				T::Currency::reserve(&sender, deposit);
+				Self::deposit_event(Event::<T>::WhitelistEnabled {pool_id, url});
+			}else{
+				Self::deposit_event(Event::<T>::WhitelistChanged {pool_id, url});
+			}
+			WhitelistSource::<T>::insert(pool_id, (bounded_url, deposit));
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn withdraw_whitelist(origin: OriginFor<T>, pool_id: ID)-> DispatchResult{
+			let sender = ensure_signed(origin)?;
+
+			Self::is_pool_owner(pool_id, sender.clone());
+
+			if let Some(source) = Self::whitelist_source(pool_id){
+				let deposit = source.1;
+				T::Currency::unreserve(&sender, deposit);
+			}else{
+				return Err(Error::<T>::PoolNotWhitelist.into())
+			}
+
+			WhitelistSource::<T>::remove(pool_id);
+
+			Self::deposit_event(Event::<T>::WhitelistWithdrew {pool_id});
+
+			Ok(())
+		}
+
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn approve_whitelist_unsigned(origin: OriginFor<T>, player: T::AccountId, pool_id: ID)-> DispatchResult{
+
+			Ok(())
+		}
+
 	}
 }
 
@@ -179,19 +261,66 @@ impl<T: Config> Pallet<T> {
 			let player = query.0;
 			let pool_id = query.1;
 
-			//if let Some(url)=
+			if let Some(url)= Self::get_url(pool_id){
+				let api = Self::get_api(&url, pool_id, &player);
+				log::info!("api: {} ", api);
+				let _ = Self::verify_and_approve(&api, player, pool_id);
+			}
 		}
 
 		Ok(())
 	}
 
-	pub fn get_api(link: &str, pool_id: ID, player: T::AccountId)-> String{
-		let pool_id_hex:String = pool_id.to_hex();
+	pub fn verify_and_approve(uri: &str, player: T::AccountId, pool_id: ID)-> Result<(), &'static str> {
+		let verify = Self::fetch_whitelist(uri);
+
+		if verify == Ok(true){
+			let call = Call::approve_whitelist_unsigned::<T>{player, pool_id};
+
+			let _ = SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into()).map_err(|_|{
+				log::error!("failed in offchain_unsigned_tx");
+			});
+		}
+
+		Ok(())
+	}
+
+	pub fn is_whitelist_player(player: &T::AccountId, pool_id: ID)-> bool{
+		if let Some(id) = Self::whitelist(player){
+			if id == pool_id{
+				return true
+			}
+		}
+		false
+	}
+
+	pub fn fetch_whitelist(url: &str)-> Result<bool, http::Error>{
+		let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(2_000));
+		let request = http::Request::get(url);
+		let pending = request.deadline(deadline).send().map_err(|_| http::Error::IoError )?;
+		let response = pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
+		if response.code != 200 {
+			log::warn!("Unexpected status code: {} ", response.code);
+			return Err(http::Error::Unknown)
+		}
+		let body = response.body().collect::<Vec<u8>>();
+		let body_str = sp_std::str::from_utf8(&body).map_err(|_|{
+			log::warn!("No UTF8 body");
+			http::Error::Unknown
+		})?;
+		let verify = matches!(body_str, "true");
+
+		Ok(verify)
+	}
+
+
+	pub fn get_api(link: &str, pool_id: ID, player: &T::AccountId)-> String{
+		let pool_id_hex: String = pool_id.to_hex();
 		let address = player.encode();
 
 		let hex_address: String = address.to_hex();
 
-		let uri = format!("");
+		let uri = format!("{link}?pool_id={pool_id_hex}&address={hex_address}");
 		uri
 	}
 
@@ -215,5 +344,25 @@ impl<T: Config> Pallet<T> {
 		}
 
 		Err(Error::<T>::PoolNotFound)
+	}
+}
+
+impl<T: Config> IWhiteList<T::AccountId> for Pallet<T>{
+	fn is_whitelist(pool_id: ID)-> bool{
+		WhitelistSource::<T>::get(pool_id).is_some()
+	}
+
+	fn insert_whitelist(pool_id: ID, player: T::AccountId)-> Result<(), &'static str >{
+		ensure!(T::SponsoredPool::is_pool(pool_id), Error::<T>::PoolNotFound );
+
+		ensure!(Self::is_whitelist(pool_id), Error::<T>::PoolNotWhitelist);
+
+		ensure!( !Self::is_whitelist_player(&player, pool_id), Error::<T>::AlreadyWhitelist );
+
+		ensure!(!T::WhitelistPool::is_joined_pool(player.clone(), pool_id), Error::<T>::AlreadyJoined);
+
+		Whitelist::<T>::insert(player, pool_id);
+
+		Ok(())
 	}
 }

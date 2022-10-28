@@ -1,4 +1,4 @@
-use crate as pallet_whitelist;
+use crate as pallet_template;
 use frame_support::traits::{ConstU16, ConstU64};
 use frame_system as system;
 use sp_core::H256;
@@ -6,14 +6,6 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-
-use gafi_primitives::{
-	constant::ID,
-	currency::{unit, NativeToken::GAKI },
-	ticket::TicketInfo
-};
-
-pub use pallet_balances::Call as BalancesCall;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -26,28 +18,9 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system,
-		Balances: pallet_balances,
-		PalletWhitelist: pallet_whitelist,
+		TemplateModule: pallet_template,
 	}
 );
-
-pub const EXISTENTIAL_DEPOSIT: u128 = 1_000;
-
-parameter_types!{
-	pub ExistentialDeposit = EXISTENTIAL_DEPOSIT;
-}
-
-impl pallet_balances::Config for Test{
-	type MaxLocks = ();
-	type MaxReserves = ();
-	type ReserveIdentifier = [u8; 8];
-	type Balance = u128;
-	type Event = Event;
-	type DustRemoval = ();
-	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
-	type WeightInfo = ();
-}
 
 impl system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
@@ -76,10 +49,8 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
-impl pallet_whitelist::Config for Test {
+impl pallet_template::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type WhitelistPool
 }
 
 // Build genesis storage according to the mock runtime.

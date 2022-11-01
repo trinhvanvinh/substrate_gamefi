@@ -5,6 +5,8 @@ use frame_support::serde::{Deserialize, Serialize};
 use scale_info::TypeInfo;
 use sp_runtime::{Permill, RuntimeDebug};
 
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Copy, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct SystemService{
 	pub id: ID,
 	pub service: Service,

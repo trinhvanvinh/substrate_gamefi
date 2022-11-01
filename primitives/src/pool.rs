@@ -14,7 +14,8 @@ pub enum PoolType{
 	Staking,
 	Sponsored
 }
-
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Copy, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub struct Service{
 	pub tx_limit: u32,
 	pub discount: Permill

@@ -7,13 +7,16 @@ use sp_core::H160;
 use sp_runtime::RuntimeDebug;
 use sp_std::vec::Vec;
 
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Eq,PartialEq, Copy, Clone, Encode, Decode, TypeInfo, MaxEncodedLen )]
 pub struct Ticket<AccountId>{
 	pub address: AccountId,
 	pub join_time: u128,
 	pub ticket_type: TicketType
 }
+
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Eq,PartialEq, Copy, Clone, Encode, Decode )]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Copy, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum TicketType{
 	Upfront(ID),
 	Staking(ID),
@@ -21,7 +24,7 @@ pub enum TicketType{
 }
 
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[derive(Eq,PartialEq, Copy, Clone, Encode, Decode )]
+#[derive(Eq,PartialEq, Copy, Clone, Encode, Decode, TypeInfo, MaxEncodedLen )]
 pub struct TicketInfo{
 	pub ticket_type: TicketType,
 	pub tickets: u32

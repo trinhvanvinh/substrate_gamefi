@@ -9,6 +9,8 @@
       <sourceFolder url="file://$MODULE_DIR$/pallets/whitelist/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/primitives/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/pallets/pallet-cache/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/pool/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/upfront-pool/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

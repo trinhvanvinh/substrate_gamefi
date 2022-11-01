@@ -7,6 +7,8 @@ use sp_std::vec::Vec;
 
 use crate::constant::ID;
 
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Clone, Encode, Decode, Eq, PartialEq, Copy, RuntimeDebug, MaxEncodedLen, TypeInfo)]
 pub enum PoolType{
 	Upfront,
 	Staking,

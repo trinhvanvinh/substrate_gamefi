@@ -45,7 +45,7 @@ use pallet_transaction_payment::{ConstFeeMultiplier, CurrencyAdapter, Multiplier
 pub use sp_runtime::BuildStorage;
 pub use sp_runtime::{Perbill, Permill};
 
-/// Import the template pallet.
+/// Import the convertor pallet.
 pub use pallet_template;
 
 /// An index to a block.
@@ -95,8 +95,8 @@ pub mod opaque {
 // https://docs.substrate.io/main-docs/build/upgrade#runtime-versioning
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("node-template"),
-	impl_name: create_runtime_str!("node-template"),
+	spec_name: create_runtime_str!("node-convertor"),
+	impl_name: create_runtime_str!("node-convertor"),
 	authoring_version: 1,
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
@@ -270,7 +270,7 @@ impl pallet_sudo::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 }
 
-/// Configure the pallet-template in pallets/template.
+/// Configure the pallet-convertor in pallets/convertor.
 impl pallet_template::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
@@ -291,7 +291,7 @@ construct_runtime!(
 		Balances: pallet_balances,
 		TransactionPayment: pallet_transaction_payment,
 		Sudo: pallet_sudo,
-		// Include the custom logic from the pallet-template in the runtime.
+		// Include the custom logic from the pallet-convertor in the runtime.
 		TemplateModule: pallet_template,
 	}
 );

@@ -11,6 +11,10 @@
       <sourceFolder url="file://$MODULE_DIR$/pallets/pallet-cache/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/pallets/pool/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/pallets/upfront-pool/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utils/convertor/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utils/currency/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utils/dummy/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/utils/ethereum/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

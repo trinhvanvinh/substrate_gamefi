@@ -15,6 +15,7 @@ pub use pallet::*;
 // mod benchmarking;
 
 use frame_support::{
+	pallet_prelude::*,
 	dispatch::{DispatchResult, Vec},
 	traits::{
 		tokens::{ExistenceRequirement, WithdrawReasons},
@@ -205,6 +206,50 @@ pub mod pallet {
 				},
 			}
 		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn set_max_player(origin: OriginFor<T>, max_player: u32)-> DispatchResult{
+			ensure_root(origin)?;
+			MaxPlayer::<T>::put(max_player);
+			Self::deposit_event(Event::<T>::UpfrontSetMaxPlayer {
+				new_max_player: max_player
+			});
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn set_services_tx_limit(origin: OriginFor<T>, pool_id: ID, tx_limit: u32)-> DispatchResult{
+			ensure_root(origin)?;
+
+			let mut service_data = Self::get_pool_by_id(pool_id)?;
+			service_data.service.tx_limit = tx_limit;
+			Services::<T>::insert(pool_id, service_data);
+
+			Self::deposit_event(Event::<T>::UpfrontSetServiceTXLimit {
+				service: pool_id,
+				tx_limit
+			});
+
+			Ok(())
+		}
+
+		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1).ref_time())]
+		pub fn set_services_discount(origin: OriginFor<T>, pool_id: ID, discount: sp_runtime::Permill)-> DispatchResult{
+			ensure_root(origin)?;
+			let mut service_data = Self::get_pool_by_id(pool_id)?;
+
+			service_data.service.discount = discount;
+			Services::<T>::insert(pool_id, service_data);
+
+			Self::deposit_event(Event::<T>::UpfrontSetServiceDiscount {
+				service: pool_id,
+				discount
+			});
+
+			Ok(())
+		}
+
+
 	}
 }
 
@@ -223,7 +268,7 @@ impl<T: Config> Pallet<T> {
 
 	fn join(sender: AccountIdLookupOf<T>, pool_id: ID)-> DispatchResult{
 		let sender = T::Lookup::lookup(sender)?;
-		let new_player_count = Self::player_count().check_add(1).ok_or(Error::<T>::PlayerCountOverflow)?;
+		let new_player_count = Self::player_count().checked_add(1).ok_or(Error::<T>::PlayerCountOverflow)?;
 
 		ensure!(new_player_count <= Self::max_player(), Error::<T>::ExceedMaxPlayer);
 
@@ -234,27 +279,76 @@ impl<T: Config> Pallet<T> {
 		Ok(())
 	}
 
+	fn join_pool(sender: T::AccountId, pool_id: ID, new_player_count: u32)-> Result<(), Error<T>>{
+		let now = <timestamp::Pallet<T>>::get();
+		let ticket = Ticket::<T::AccountId>{
+				address: sender.clone(),
+				join_time: Self::moment_to_u128(now),
+			ticket_type: TicketType::Upfront(pool_id)
+		};
+		Tickets::<T>::insert(sender, ticket);
+		<PlayerCount<T>>::put(new_player_count);
+
+		Ok(())
+	}
+
+	fn move_newplayer_to_ingame()-> Result<(), Error<T>>{
+		let new_players = Self::new_players();
+		for new_player in new_players{
+			IngamePlayers::<T>::try_append(new_player).map_err(|_| Error::<T>::ExceedMaxPlayer);
+		}
+		NewPlayers::<T>::kill();
+
+		Ok(())
+	}
+
+	// fn get_refund_balance()-> u128{
+	//
+	// }
+
+	fn remove_player(player: T::AccountId, new_player_count: u32){
+		if let Some(pool_id) = Self::get_pool_joined(player.clone()){
+			T::MasterPool::remove_player(player.clone(), pool_id);
+		}
+		Tickets::<T>::remove(player.clone());
+
+		IngamePlayers::<T>::mutate(|players|{
+			if let Some(ind) = players.iter().position(|id| *id == player){
+				players.swap_remove(ind);
+			}
+		});
+
+		NewPlayers::<T>::mutate(|players|{
+			if let Some(ind) = players.iter().position(|id| *id == player){
+				players.swap_remove(ind);
+			}
+		});
+
+		PlayerCount::<T>::put(new_player_count);
+
+	}
+
 
 	fn charge_ingame()-> Result<(), Error<T>>{
-		let ingame_players = Self::ingame_players();
+		let ingame_players: Vec<T::AccountId> = Self::ingame_players().into_inner();
 
-		for player in ingame_players{
-			if let Some(service) = Self::get_player_service(player);
-
-			let fee_value = 0;
-			match T::Currency::withdraw(player, fee_value, WithdrawReasons::FEE, ExistenceRequirement::KeepAlive){
-				Ok(_)=> {
-
-				},
-				Err(_)=> {
-					let new_player_count = Self::player_count()
-						.checked_sub(1)
-						.ok_or(Error::<T>::PlayerCountOverflow);
-					let _ = Self::remo
-				}
-
-			}
-		}
+		// for player in ingame_players{
+		// 	if let Some(service) = Self::get_player_service(player){
+		// 		let fee_value = 0;
+		// 		match T::Currency::withdraw(&player, fee_value, WithdrawReasons::FEE, ExistenceRequirement::KeepAlive){
+		// 			Ok(_)=> {
+		//
+		// 			},
+		// 			Err(_)=> {
+		// 				let new_player_count = Self::player_count()
+		// 					.checked_sub(1)
+		// 					.ok_or(Error::<T>::PlayerCountOverflow);
+		// 				let _ = Self::remove_player(player, new_player_count);
+		// 			}
+		//
+		// 		}
+		// 	}
+		// }
 
 		Ok(())
 	}

@@ -8111,6 +8111,80 @@ dependencies = [
 ]
 
 [[package]]
+name = "util-convertor"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "gafi-primitives",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "util-currency"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "gafi-primitives",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "util-dummy"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "gafi-primitives",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "util-convertor",
+ "util-currency",
+]
+
+[[package]]
+name = "util-ethereum"
+version = "4.0.0-dev"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "gafi-primitives",
+ "pallet-balances",
+ "parity-scale-codec",
+ "rustc-hex",
+ "scale-info",
+ "serde",
+ "sha3",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "util-convertor",
+ "util-currency",
+]
+
+[[package]]
 name = "valuable"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -4141,6 +4141,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "gafi-primitives",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

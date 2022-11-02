@@ -16,6 +16,7 @@
       <sourceFolder url="file://$MODULE_DIR$/utils/currency/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utils/dummy/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utils/ethereum/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pallets/pallet-faucet/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
